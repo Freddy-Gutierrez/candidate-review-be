@@ -1,0 +1,4 @@
+{
+  "db": "candidate_review_be",
+  "jwtPrivateKey": "myKey"
+}
