@@ -15,13 +15,13 @@ router.post("/", validate(validateUser), async (req, res) => {
   let user = await User.findOne({ username: username });
   if (user) return res.status(400).send("User already registered");
 
+  const salt = await bcrypt.genSalt(10);
   user = await new User({
     username: username,
     password: password,
     isAdmin: isAdmin,
+    salt: salt,
   });
-
-  const salt = await bcrypt.genSalt(10);
   user.password = await bcrypt.hash(password, salt);
   user.save();
 
@@ -41,6 +41,24 @@ router.get("/", async (req, res) => {
 router.get("/me", auth, async (req, res) => {
   const user = await User.findById(req.user._id).select("-password");
   res.status(200).send(user);
+});
+
+// login user if valid credentials
+router.post("/login", validate(validateUser), async (req, res) => {
+  const { username, password } = req.body;
+  const user = await User.findOne({ username });
+  if (!user) return res.status(404).send("User not found");
+
+  await bcrypt.compare(password, user.password, (err, result) => {
+    if (!result)
+      return res.status(404).send("Username or password did not match");
+
+    const token = user.generateAuthToken();
+    res
+      .status(200)
+      .header("x-auth-token", token)
+      .send(_.pick(user, ["_id", "username", "isAdmin"]));
+  });
 });
 
 // validate user using hapi/joi
